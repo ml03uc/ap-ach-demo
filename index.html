@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ACH Verification Flow — Alternative Payments</title>
+  <style>
+    :root {
+      --navy: #0f1629;
+      --ap-teal: #00c4a0;
+      --payer-blue: #3b82f6;
+      --platform-purple: #8b5cf6;
+      --network-amber: #f59e0b;
+      --rdfi-green: #10b981;
+      --border: #e5e7eb;
+      --bg: #f3f4f6;
+      --card-bg: #ffffff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: #111827;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── HEADER ── */
+    .site-header {
+      background: var(--navy);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .site-header svg { height: 28px; width: auto; }
+    .site-header span { color: white; font-size: 15px; font-weight: 600; }
+
+    /* ── DEMO CONTROL BAR ── */
+    .demo-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--navy);
+      padding: 10px 28px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      min-height: 52px;
+    }
+    .demo-bar.inactive {
+      background: #ffffff;
+      border-top: none;
+      border-bottom: 1.5px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .narration {
+      flex: 1;
+      font-size: 13px;
+      color: rgba(255,255,255,0.8);
+      font-style: italic;
+    }
+    .demo-bar.inactive .narration { color: #6b7280; }
+    .btn {
+      padding: 7px 15px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-start {
+      background: var(--ap-teal);
+      color: #0f1629;
+    }
+    .btn-start:hover { background: #00b090; }
+    .btn-nav {
+      background: rgba(255,255,255,0.14);
+      color: white;
+    }
+    .btn-nav:hover:not(:disabled) { background: rgba(255,255,255,0.25); }
+    .btn-nav:disabled { opacity: 0.35; cursor: not-allowed; }
+    .demo-bar.inactive .btn-nav { background: #e5e7eb; color: #374151; }
+    .demo-bar.inactive .btn-nav:hover:not(:disabled) { background: #d1d5db; }
+    .step-counter {
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+      white-space: nowrap;
+    }
+    .demo-bar.inactive .step-counter { color: #9ca3af; }
+
+    /* ── PAGE MAIN ── */
+    .page-main {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 28px 28px 64px;
+    }
+
+    /* ── INTRO BOX ── */
+    .intro-box {
+      background: #eff6ff;
+      border: 1.5px solid #bfdbfe;
+      border-radius: 10px;
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      font-size: 13.5px;
+      color: #1e40af;
+      line-height: 1.7;
+    }
+    .intro-box strong { font-weight: 700; color: #1e3a8a; }
+
+    /* ── PAGE TITLE ── */
+    .page-title {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .page-title h1 {
+      font-size: 25px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 6px;
+    }
+    .page-title p { color: #6b7280; font-size: 14.5px; }
+
+    /* ── LEGEND ── */
+    .legend {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .legend-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      border: 1.5px solid var(--border);
+      background: white;
+      cursor: help;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .legend-item:hover { border-color: #9ca3af; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-label { font-size: 13px; font-weight: 500; color: #374151; }
+    .legend-tip {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--navy);
+      color: rgba(255,255,255,0.9);
+      font-size: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      width: 240px;
+      z-index: 300;
+      text-align: left;
+      line-height: 1.6;
+      font-style: normal;
+      font-weight: 400;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+      pointer-events: none;
+    }
+    .legend-tip::before {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 6px solid var(--navy);
+    }
+    .legend-item:hover .legend-tip { display: block; }
+
+    /* ── TWO-COLUMN GRID ── */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 56px 1fr;
+      align-items: start;
+      margin-bottom: 32px;
+    }
+    .vs-divider {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 22px;
+      position: sticky;
+      top: 60px;
+    }
+    .vs-circle {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: white;
+      font-size: 12px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── COLUMN CARD ── */
+    .col-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1.5px solid var(--border);
+    }
+    .col-card.ap { border-color: #6ee7b7; }
+
+    .col-header {
+      background: var(--navy);
+      padding: 16px 20px 14px;
+    }
+    .col-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .col-title { font-size: 17px; font-weight: 700; color: white; }
+    .col-badge {
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-wait { background: #fca5a5; color: #7f1d1d; }
+    .badge-done { background: var(--ap-teal); color: #064e3b; }
+    .col-subtitle { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+    /* ── PAYER DOES ── */
+    .payer-does {
+      padding: 10px 20px;
+      background: #f8fafc;
+      border-bottom: 1.5px solid var(--border);
+      font-size: 12.5px;
+      color: #374151;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .payer-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--payer-blue);
+      white-space: nowrap;
+      padding-top: 2px;
+      flex-shrink: 0;
+    }
+
+    /* ── STEPS ── */
+    .steps-list { padding: 6px 0; }
+
+    .step-item {
+      padding: 11px 20px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      border-bottom: 1px solid #f3f4f6;
+      transition: opacity 0.35s ease, transform 0.35s ease, box-shadow 0.2s, background 0.2s;
+    }
+    .step-item:last-child { border-bottom: none; }
+
+    .step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .step-content { flex: 1; min-width: 0; }
+    .step-actor-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+    .actor-badge {
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+    .a-payer    { background: #dbeafe; color: #1d4ed8; }
+    .a-platform { background: #ede9fe; color: #6d28d9; }
+    .a-network  { background: #fef3c7; color: #92400e; }
+    .a-rdfi     { background: #d1fae5; color: #065f46; }
+    .a-ap       { background: #ccfbf1; color: #0f766e; }
+    .step-tag   { font-size: 10px; color: #9ca3af; font-style: italic; }
+    .step-day   { font-size: 11px; color: #6b7280; font-weight: 600; margin-left: auto; white-space: nowrap; }
+    .step-day.green { color: #059669; }
+    .step-text  { font-size: 13px; color: #374151; line-height: 1.55; }
+    .step-text strong { font-weight: 600; color: #111827; }
+
+    /* ── BACKGROUND GROUP (AP) ── */
+    .bg-group {
+      margin: 4px 14px 4px;
+      border: 1.5px dashed #6ee7b7;
+      border-radius: 8px;
+      background: #f0fdf9;
+      overflow: hidden;
+    }
+    .bg-group-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #059669;
+      padding: 7px 14px 2px;
+    }
+    .bg-group .step-item {
+      padding: 8px 14px;
+      border-bottom: none;
+    }
+
+    /* ── WAIT BLOCKER ── */
+    .wait-blocker {
+      margin: 6px 14px;
+      padding: 14px 16px;
+      background: #fee2e2;
+      border: 1.5px dashed #fca5a5;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .wait-icon { font-size: 22px; margin-bottom: 5px; }
+    .wait-title { font-size: 14px; font-weight: 700; color: #991b1b; margin-bottom: 4px; }
+    .wait-text  { font-size: 12.5px; color: #b91c1c; line-height: 1.5; }
+
+    /* ── ERROR SCENARIOS ── */
+    .errors-section { margin: 6px 14px 14px; }
+    .errors-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #991b1b;
+      padding: 6px 0 5px;
+    }
+    .error-item {
+      padding: 8px 12px;
+      border-left: 3px solid #fca5a5;
+      background: #fff5f5;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 6px;
+      font-size: 12.5px;
+      color: #374151;
+      line-height: 1.5;
+    }
+    .error-item strong { color: #991b1b; }
+
+    /* ── SUCCESS CALLOUT ── */
+    .success-callout {
+      margin: 6px 14px 14px;
+      padding: 12px 16px;
+      background: #f0fdf4;
+      border: 1.5px solid #86efac;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #166534;
+      line-height: 1.6;
+    }
+    .success-callout strong { font-weight: 700; }
+
+    /* ── HIDDEN / ACTIVE STEP STATES ── */
+    .hidden-step {
+      opacity: 0 !important;
+      transform: translateY(8px) !important;
+      pointer-events: none;
+    }
+    .active-step {
+      box-shadow: inset 0 0 0 2px #fbbf24, 0 0 0 2px rgba(251,191,36,0.15) !important;
+      border-radius: 8px;
+    }
+    .step-item.active-step { background: #fffbeb !important; }
+
+    /* ── GLOSSARY TOOLTIP ── */
+    .glos {
+      border-bottom: 1.5px dashed #93c5fd;
+      cursor: help;
+      position: relative;
+      display: inline;
+    }
+    .glos-tip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 0;
+      background: var(--navy);
+      color: rgba(255,255,255,0.9);
+      font-size: 12px;
+      padding: 9px 13px;
+      border-radius: 7px;
+      width: 210px;
+      z-index: 400;
+      line-height: 1.6;
+      font-style: normal;
+      font-weight: 400;
+      box-shadow: 0 5px 16px rgba(0,0,0,0.25);
+      pointer-events: none;
+    }
+    .glos:hover .glos-tip { display: block; }
+
+    /* ── BELOW COMPARE SECTIONS ── */
+    .below-compare { display: flex; flex-direction: column; gap: 20px; }
+
+    .insight-bar {
+      background: var(--navy);
+      border-radius: 10px;
+      padding: 20px 24px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .insight-icon { font-size: 24px; flex-shrink: 0; }
+    .insight-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--ap-teal);
+      margin-bottom: 6px;
+    }
+    .insight-text { font-size: 14px; color: rgba(255,255,255,0.88); line-height: 1.65; }
+    .insight-text strong { color: white; }
+
+    .rep-script {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      background: white;
+    }
+    .rep-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--ap-teal);
+      margin-bottom: 8px;
+    }
+    .rep-quote {
+      font-size: 14px;
+      color: #1f2937;
+      font-style: italic;
+      line-height: 1.75;
+    }
+
+    .compare-table-wrap {
+      background: white;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .compare-table-wrap h2 {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 14px 20px;
+      border-bottom: 1.5px solid var(--border);
+      color: #374151;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px 20px; text-align: left; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+    tr:last-child td { border-bottom: none; }
+    th { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #9ca3af; background: #f9fafb; }
+    th.ap-th { color: #059669; background: #f0fdf9; }
+    td.row-label { font-weight: 600; color: #111827; width: 170px; }
+    td.trad-val { color: #6b7280; }
+    td.ap-val { color: #059669; font-weight: 500; }
+
+    .transition-all { transition: opacity 0.35s ease, transform 0.35s ease; }
+
+    footer { text-align: center; padding: 24px; font-size: 12px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════ HEADER ════════════════ -->
+<header class="site-header">
+  <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20 4L36 32H4L20 4Z" fill="white" fill-opacity="0.15"/>
+    <path d="M20 4L31 24H9L20 4Z" fill="white" fill-opacity="0.35"/>
+    <path d="M20 4L25 16H15L20 4Z" fill="white"/>
+  </svg>
+  <span>Alternative Payments</span>
+</header>
+
+<!-- ════════════════ DEMO CONTROL BAR ════════════════ -->
+<div class="demo-bar inactive" id="demoBar">
+  <div class="narration" id="narrationText">
+    Click "Start Demo" to walk through each step one at a time, with a guided explanation at each stage.
+  </div>
+  <button class="btn btn-nav" id="prevBtn" disabled onclick="prevBeat()">&#8592; Back</button>
+  <button class="btn btn-start" id="startBtn" onclick="startDemo()">&#9654; Start Demo</button>
+  <button class="btn btn-nav" id="nextBtn" style="display:none" onclick="nextBeat()">Next &#8594;</button>
+  <button class="btn btn-nav" id="resetBtn" style="display:none" onclick="resetDemo()">&#8635; Reset</button>
+  <span class="step-counter" id="stepCounter" style="display:none"></span>
+</div>
+
+<!-- ════════════════ MAIN ════════════════ -->
+<main class="page-main">
+
+  <!-- INTRO -->
+  <div class="intro-box" id="intro-box">
+    <strong>New to ACH?</strong> ACH stands for Automated Clearing House. It is the national electronic network that moves money between bank accounts in the United States. When your clients set up autopay, they are authorizing an ACH transfer from their bank account to yours. Before that first payment can happen, most platforms require a step called <em>account verification</em> to confirm the bank account is real. This page shows two ways that verification can work and why the difference matters to you.
+  </div>
+
+  <!-- TITLE -->
+  <div class="page-title">
+    <h1>The Old Way vs. Alternative Payments</h1>
+    <p>Why your clients can enroll and get their first payment sent on the very same day they sign up</p>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#3b82f6"></div>
+      <span class="legend-label">Payer (your client)</span>
+      <div class="legend-tip">This is your client. The person or business setting up autopay. They interact with the enrollment form directly. Their experience is what we are comparing.</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#8b5cf6"></div>
+      <span class="legend-label">Payment Platform</span>
+      <div class="legend-tip">The software managing the payment process on your behalf. On the left this is a traditional platform like FlexPoint or ConnectBooster. On the right this is Alternative Payments.</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#f59e0b"></div>
+      <span class="legend-label">ACH Network</span>
+      <div class="legend-tip">The national system that moves money between banks. Think of it as the highway your payment travels on. It processes transactions in batches, typically 3 to 5 times per business day — not instantly.</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#10b981"></div>
+      <span class="legend-label">Your Client's Bank</span>
+      <div class="legend-tip">Two banks are involved in every ACH transfer. The sending bank is called the ODFI. The receiving bank, which is your client's bank, is called the RDFI. Hover over those terms in the steps below to learn more.</div>
+    </div>
+  </div>
+
+  <!-- TWO COLUMN COMPARISON -->
+  <div class="compare-grid">
+
+    <!-- ── LEFT: Traditional ACH ── -->
+    <div class="col-card traditional">
+      <div class="col-header">
+        <div class="col-title-row">
+          <div class="col-title">Traditional ACH</div>
+          <span class="col-badge badge-wait">3 actions and a 1 to 3 day wait</span>
+        </div>
+        <div class="col-subtitle">Micro deposit verification — used by FlexPoint, ConnectBooster, and others</div>
+      </div>
+
+      <div class="payer-does">
+        <span class="payer-label">YOUR CLIENT DOES</span>
+        <span>Enters bank info, then waits 1 to 3 days, then checks their bank statement, then comes back to enter the deposit amounts</span>
+      </div>
+
+      <div class="steps-list">
+
+        <div class="step-item transition-all" id="trad-step-1">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-payer">Payer</span>
+              <span class="step-day">Day 0</span>
+            </div>
+            <div class="step-text">Types their <span class="glos">routing number<span class="glos-tip">A 9-digit number that identifies your client's bank. Every bank in the US has a unique one. It tells the ACH Network where to send the money.</span></span> and account number into the enrollment form</div>
+          </div>
+        </div>
+
+        <div class="step-item transition-all" id="trad-step-2">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-platform">Platform</span>
+              <span class="step-day">Day 0</span>
+            </div>
+            <div class="step-text">Immediately flags the account as <strong>"pending verification."</strong> No payments can be started until this process is complete. Your client is blocked.</div>
+          </div>
+        </div>
+
+        <div class="step-item transition-all" id="trad-step-3">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-platform">Platform to <span class="glos" style="border-bottom-color:rgba(107,114,128,0.5)">ODFI<span class="glos-tip">ODFI stands for Originating Depository Financial Institution. This is simply the bank that sends the payment on behalf of the platform.</span></span></span>
+              <span class="step-day">Day 0</span>
+            </div>
+            <div class="step-text">Submits two tiny test deposits (each between $0.01 and $1.00) to go out in the next <span class="glos">ACH batch window<span class="glos-tip">The ACH Network does not move money in real time. It collects payments throughout the day and sends them in scheduled batches. This means a payment submitted at noon may not go out until the next batch, which could be hours later or even the next business day.</span></span></div>
+          </div>
+        </div>
+
+        <div class="step-item transition-all" id="trad-step-4">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-network">ACH Network</span>
+              <span class="step-day">Day 0 to 1</span>
+            </div>
+            <div class="step-text">Sorts and routes the test deposits toward your client's bank</div>
+          </div>
+        </div>
+
+        <div class="step-item transition-all" id="trad-step-5">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-rdfi"><span class="glos" style="border-bottom-color:rgba(6,95,70,0.4)">RDFI<span class="glos-tip">RDFI stands for Receiving Depository Financial Institution. This is your client's bank. It receives the deposits and makes them visible on the bank statement.</span></span> (Client's Bank)</span>
+              <span class="step-day">Day 1 to 2</span>
+            </div>
+            <div class="step-text">Posts the <span class="glos">micro deposits<span class="glos-tip">These are two very small test amounts sent to your client's bank account — typically a few cents each. The idea is that only the true account owner could know the exact amounts, proving ownership of the account.</span></span>. The amounts become visible on the bank statement.</div>
+          </div>
+        </div>
+
+        <!-- WAIT BLOCKER -->
+        <div class="wait-blocker transition-all" id="trad-wait">
+          <div class="wait-icon">⏳</div>
+          <div class="wait-title">1 to 3 Business Day Wait</div>
+          <div class="wait-text">Your client cannot pay. You cannot collect. The process is completely stopped until those deposits appear in their account and they take action.</div>
+        </div>
+
+        <div class="step-item transition-all" id="trad-step-6">
+          <div class="step-num">6</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-payer">Payer</span>
+              <span class="step-day">Day 1 to 3</span>
+            </div>
+            <div class="step-text">Has to remember to come back on their own. Checks their bank statement, finds the two small deposit amounts, logs back into the platform, and types them in exactly.</div>
+          </div>
+        </div>
+
+        <div class="step-item transition-all" id="trad-step-7">
+          <div class="step-num">7</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-platform">Platform</span>
+              <span class="step-day">Day 1 to 3</span>
+            </div>
+            <div class="step-text">Checks that the entered amounts match exactly. If they do, the account is finally marked <strong>verified.</strong></div>
+          </div>
+        </div>
+
+        <div class="step-item transition-all" id="trad-step-8">
+          <div class="step-num">8</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-platform">Platform to ODFI</span>
+              <span class="step-day">Day 2 to 5</span>
+            </div>
+            <div class="step-text">The first real ACH payment can now be initiated for the very first time</div>
+          </div>
+        </div>
+
+        <div class="step-item transition-all" id="trad-step-9">
+          <div class="step-num">9</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-network">ACH Network</span>
+              <span class="step-day">Day 3 to 6</span>
+            </div>
+            <div class="step-text">Routes the real payment to your client's bank</div>
+          </div>
+        </div>
+
+        <div class="step-item transition-all" id="trad-step-10">
+          <div class="step-num">10</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-rdfi">Client's Bank</span>
+              <span class="step-day">Day 4 to 7</span>
+            </div>
+            <div class="step-text">Funds settle in your client's account. From enrollment to first dollar collected: 4 to 7 days at best.</div>
+          </div>
+        </div>
+
+        <!-- ERRORS -->
+        <div class="errors-section transition-all" id="trad-errors">
+          <div class="errors-label">COMMON WAYS THIS PROCESS FAILS COMPLETELY</div>
+          <div class="error-item"><strong>Typo in routing or account number:</strong> Deposits never arrive. The process stalls and someone has to restart.</div>
+          <div class="error-item"><strong>Account is closed:</strong> Deposits are returned. Must restart the entire process from the beginning.</div>
+          <div class="error-item"><strong>Payer never comes back:</strong> The verification window expires. Another restart is required.</div>
+          <div class="error-item"><strong>Weekend or holiday in the middle:</strong> "Day 1" becomes Day 3 or later. First payment gets pushed out to Day 7 or beyond.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── VS ── -->
+    <div class="vs-divider">
+      <div class="vs-circle">VS</div>
+    </div>
+
+    <!-- ── RIGHT: Alternative Payments ── -->
+    <div class="col-card ap">
+      <div class="col-header">
+        <div class="col-title-row">
+          <div class="col-title">Alternative Payments</div>
+          <span class="col-badge badge-done">1 action and done</span>
+        </div>
+        <div class="col-subtitle">Zero friction enrollment. Payment initiated the same day.</div>
+      </div>
+
+      <div class="payer-does">
+        <span class="payer-label">YOUR CLIENT DOES</span>
+        <span>Enters bank info and is <strong>done.</strong> First payment goes out the same day they enroll.</span>
+      </div>
+
+      <div class="steps-list">
+
+        <div class="step-item transition-all" id="ap-step-1">
+          <div class="step-num" style="background:#059669">1</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-payer">Payer</span>
+              <span class="step-day green">0 seconds</span>
+            </div>
+            <div class="step-text">Enters their routing and account number in AP's client portal. Same form. Same experience. Nothing new to learn.</div>
+          </div>
+        </div>
+
+        <div class="bg-group transition-all" id="ap-background-group">
+          <div class="bg-group-label">HAPPENING IN THE BACKGROUND — NO ACTION NEEDED FROM YOUR CLIENT</div>
+          <div class="step-item">
+            <div class="step-num" style="background:#059669">2</div>
+            <div class="step-content">
+              <div class="step-actor-row">
+                <span class="actor-badge a-ap">AP Platform</span>
+                <span class="step-tag">background</span>
+                <span class="step-day green">instant</span>
+              </div>
+              <div class="step-text">Stores the account details. No prior verification step. No waiting period.</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num" style="background:#059669">3</div>
+            <div class="step-content">
+              <div class="step-actor-row">
+                <span class="actor-badge a-ap">AP Platform</span>
+                <span class="step-tag">background</span>
+                <span class="step-day green">instant</span>
+              </div>
+              <div class="step-text">Account marked active. Autopay is enabled immediately.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-item transition-all" id="ap-step-4">
+          <div class="step-num" style="background:#059669">4</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-ap">AP to ODFI</span>
+              <span class="step-day green">Day 0</span>
+            </div>
+            <div class="step-text">First real ACH payment initiated that same day and submitted to the next batch window. No test deposits. No delay.</div>
+          </div>
+        </div>
+
+        <div class="step-item transition-all" id="ap-step-5">
+          <div class="step-num" style="background:#059669">5</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-network">ACH Network</span>
+              <span class="step-day">Day 0 to 1</span>
+            </div>
+            <div class="step-text">Routes the payment to your client's bank</div>
+          </div>
+        </div>
+
+        <div class="step-item transition-all" id="ap-step-6">
+          <div class="step-num" style="background:#059669">6</div>
+          <div class="step-content">
+            <div class="step-actor-row">
+              <span class="actor-badge a-rdfi">Client's Bank</span>
+              <span class="step-day">Day 1 to 2</span>
+            </div>
+            <div class="step-text">Funds settle in your client's account</div>
+          </div>
+        </div>
+
+        <div class="success-callout transition-all" id="ap-success">
+          <strong>Enrollment complete.</strong> Your client finished setup in under a minute. No follow up needed. No confirmation step. No chasing anyone. Your team does nothing extra.
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /compare-grid -->
+
+  <!-- ════ BELOW COMPARE ════ -->
+  <div class="below-compare">
+
+    <div class="insight-bar transition-all" id="insight-bar">
+      <div class="insight-icon">💡</div>
+      <div>
+        <div class="insight-label">KEY INSIGHT FOR REPS</div>
+        <div class="insight-text">
+          <strong>The delay lives in the enrollment step. AP eliminates it entirely.</strong> Both paths settle in 1 to 3 business days once the payment starts moving. The difference is how long your client waits before that first payment even begins. On AP, it starts the same day. On platforms using micro deposits, it starts 2 to 5 business days later — and only if your client remembers to come back at all.
+        </div>
+      </div>
+    </div>
+
+    <div class="rep-script transition-all" id="rep-script">
+      <div class="rep-label">REP SCRIPT</div>
+      <div class="rep-quote">"When your client sets up autopay on AP, they enter their bank info once and they are done. No test deposits, no waiting around, no chasing them to confirm anything. You get paid the same day they enroll."</div>
+    </div>
+
+    <div class="compare-table-wrap transition-all" id="compare-table">
+      <h2>Side by Side Comparison</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Traditional (Micro Deposits)</th>
+            <th class="ap-th">Alternative Payments</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="row-label">Verification method</td>
+            <td class="trad-val">Two test deposits. Manual confirmation required from your client.</td>
+            <td class="ap-val">No enrollment delay. First payment goes out same day.</td>
+          </tr>
+          <tr>
+            <td class="row-label">Steps for your client</td>
+            <td class="trad-val">Enter numbers, wait days, check bank statement, return to enter amounts</td>
+            <td class="ap-val">Enter numbers and done</td>
+          </tr>
+          <tr>
+            <td class="row-label">Dropout risk</td>
+            <td class="trad-val">High. Client must remember to return on their own. Window can expire.</td>
+            <td class="ap-val">None. No follow up action is ever required.</td>
+          </tr>
+          <tr>
+            <td class="row-label">First payment sent</td>
+            <td class="trad-val">Day 2 to 5</td>
+            <td class="ap-val">Same day</td>
+          </tr>
+          <tr>
+            <td class="row-label">ACH settlement time</td>
+            <td class="trad-val">1 to 3 business days</td>
+            <td class="ap-val">1 to 3 business days</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+</main>
+
+<footer>Alternative Payments &nbsp;·&nbsp; alternativepayments.io</footer>
+
+<script>
+// ════════════════════════════════════════════════
+//  DEMO SCRIPT
+// ════════════════════════════════════════════════
+
+const REVEALABLE = [
+  'trad-step-1','trad-step-2','trad-step-3','trad-step-4','trad-step-5',
+  'trad-wait',
+  'trad-step-6','trad-step-7','trad-step-8','trad-step-9','trad-step-10',
+  'trad-errors',
+  'ap-step-1','ap-background-group','ap-step-4','ap-step-5','ap-step-6','ap-success',
+  'insight-bar','rep-script','compare-table'
+];
+
+const BEATS = [
+  {
+    narration: "Welcome. All steps are hidden. We will reveal them one at a time. Click Next to start walking through both paths together.",
+    reveal: [],
+    active: []
+  },
+  {
+    narration: "Both paths start exactly the same way. Your client enters their bank routing number and account number. Same form. Same experience. This step is identical on both sides.",
+    reveal: ['trad-step-1', 'ap-step-1'],
+    active: ['trad-step-1', 'ap-step-1']
+  },
+  {
+    narration: "This is where the paths split. The traditional platform immediately puts the account on hold and flags it as 'pending verification.' Your client cannot make any payment yet.",
+    reveal: ['trad-step-2'],
+    active: ['trad-step-2']
+  },
+  {
+    narration: "On Alternative Payments, two things happen instantly in the background without any action from your client. The account is stored and activated in under a second.",
+    reveal: ['ap-background-group'],
+    active: ['ap-background-group']
+  },
+  {
+    narration: "The traditional platform now sends two tiny test deposits to your client's bank. Each is between $0.01 and $1.00. These go out in the next ACH batch window, which could be hours away.",
+    reveal: ['trad-step-3'],
+    active: ['trad-step-3']
+  },
+  {
+    narration: "On Alternative Payments there are no test deposits at all. The first real payment goes out that same day, right now.",
+    reveal: ['ap-step-4'],
+    active: ['ap-step-4']
+  },
+  {
+    narration: "The ACH Network picks up the transactions on both sides and routes them toward your client's bank.",
+    reveal: ['trad-step-4', 'ap-step-5'],
+    active: ['trad-step-4', 'ap-step-5']
+  },
+  {
+    narration: "The test deposits arrive at your client's bank. But they may not appear on the bank statement yet — that can take another full business day.",
+    reveal: ['trad-step-5'],
+    active: ['trad-step-5']
+  },
+  {
+    narration: "Now we hit the wall. Your client has to wait 1 to 3 business days for those deposits to show up. They cannot pay. You cannot collect. Both sides are completely stopped.",
+    reveal: ['trad-wait'],
+    active: ['trad-wait']
+  },
+  {
+    narration: "Meanwhile on Alternative Payments, the payment is already settling at your client's bank. No wall. No wait. No problem.",
+    reveal: ['ap-step-6'],
+    active: ['ap-step-6']
+  },
+  {
+    narration: "Your client now has to remember to come back on their own. They check their bank statement, find the two small amounts, log back into the platform, and type them in exactly right.",
+    reveal: ['trad-step-6'],
+    active: ['trad-step-6']
+  },
+  {
+    narration: "The platform checks the numbers. If they match exactly, the account is finally marked verified. If they got even one digit wrong, they start over.",
+    reveal: ['trad-step-7'],
+    active: ['trad-step-7']
+  },
+  {
+    narration: "Only now, for the very first time, can the platform send a real payment. On Alternative Payments, this happened on Day 0 when your client first enrolled.",
+    reveal: ['trad-step-8'],
+    active: ['trad-step-8']
+  },
+  {
+    narration: "The real payment routes through the ACH Network and settles. From enrollment to first dollar collected: 4 to 7 days. That is the best case on a traditional platform.",
+    reveal: ['trad-step-9', 'trad-step-10'],
+    active: ['trad-step-10']
+  },
+  {
+    narration: "On Alternative Payments, enrollment is already complete. Your client spent under a minute on this. Your team does not have to follow up on anything.",
+    reveal: ['ap-success'],
+    active: ['ap-success']
+  },
+  {
+    narration: "These are the common ways the traditional process fails entirely — each one requires a full restart. Any of these scenarios is a lost payment or a lost client.",
+    reveal: ['trad-errors'],
+    active: ['trad-errors']
+  },
+  {
+    narration: "Here is the key: settlement time is the same on both paths. The difference is everything that happens before the payment starts. That gap is where you lose clients and cash flow.",
+    reveal: ['insight-bar', 'rep-script', 'compare-table'],
+    active: ['insight-bar']
+  }
+];
+
+let demoActive = false;
+let currentBeat = 0;
+let revealed = new Set();
+
+function startDemo() {
+  demoActive = true;
+  currentBeat = 0;
+  revealed = new Set();
+
+  REVEALABLE.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden-step');
+  });
+
+  const bar = document.getElementById('demoBar');
+  bar.classList.remove('inactive');
+
+  document.getElementById('startBtn').style.display = 'none';
+  document.getElementById('nextBtn').style.display = '';
+  document.getElementById('resetBtn').style.display = '';
+  document.getElementById('stepCounter').style.display = '';
+  document.getElementById('prevBtn').disabled = true;
+
+  applyBeat(0);
+}
+
+function applyBeat(beatIndex) {
+  const beat = BEATS[beatIndex];
+
+  document.getElementById('narrationText').textContent = beat.narration;
+
+  beat.reveal.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.remove('hidden-step');
+      revealed.add(id);
+    }
+  });
+
+  document.querySelectorAll('.active-step').forEach(el => el.classList.remove('active-step'));
+
+  beat.active.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.add('active-step');
+      // Scroll into view if needed
+      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+    }
+  });
+
+  const total = BEATS.length;
+  document.getElementById('stepCounter').textContent = (beatIndex + 1) + ' of ' + total;
+
+  document.getElementById('prevBtn').disabled = beatIndex === 0;
+  const nextBtn = document.getElementById('nextBtn');
+  nextBtn.disabled = beatIndex === total - 1;
+  nextBtn.textContent = beatIndex >= total - 2 ? 'Finish \u2192' : 'Next \u2192';
+}
+
+function nextBeat() {
+  if (currentBeat < BEATS.length - 1) {
+    currentBeat++;
+    applyBeat(currentBeat);
+  }
+}
+
+function prevBeat() {
+  if (currentBeat > 0) {
+    const beat = BEATS[currentBeat];
+    beat.reveal.forEach(id => {
+      if (!isPreviouslyRevealed(id, currentBeat - 1)) {
+        const el = document.getElementById(id);
+        if (el) {
+          el.classList.add('hidden-step');
+          revealed.delete(id);
+        }
+      }
+    });
+    currentBeat--;
+    applyBeat(currentBeat);
+  }
+}
+
+function isPreviouslyRevealed(id, upToBeat) {
+  for (let i = 0; i <= upToBeat; i++) {
+    if (BEATS[i].reveal.includes(id)) return true;
+  }
+  return false;
+}
+
+function resetDemo() {
+  demoActive = false;
+  currentBeat = 0;
+
+  document.querySelectorAll('.hidden-step').forEach(el => el.classList.remove('hidden-step'));
+  document.querySelectorAll('.active-step').forEach(el => el.classList.remove('active-step'));
+
+  document.getElementById('demoBar').classList.add('inactive');
+  document.getElementById('startBtn').style.display = '';
+  document.getElementById('nextBtn').style.display = 'none';
+  document.getElementById('resetBtn').style.display = 'none';
+  document.getElementById('stepCounter').style.display = 'none';
+  document.getElementById('prevBtn').disabled = true;
+  document.getElementById('narrationText').textContent = 'Click "Start Demo" to walk through each step one at a time, with a guided explanation at each stage.';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', function(e) {
+  if (!demoActive) return;
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextBeat(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prevBeat(); }
+  if (e.key === 'Escape') resetDemo();
+});
+</script>
+
+</body>
+</html>
