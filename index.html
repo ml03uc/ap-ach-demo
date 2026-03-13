@@ -34,7 +34,6 @@
       gap: 12px;
       justify-content: space-between;
     }
-    .site-header svg { height: 28px; width: auto; }
     .site-header span { color: white; font-size: 15px; font-weight: 600; }
     .header-left { display: flex; align-items: center; gap: 12px; }
 
@@ -521,11 +520,6 @@
 <!-- ════════════════ HEADER ════════════════ -->
 <header class="site-header">
   <div class="header-left">
-    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20 4L36 32H4L20 4Z" fill="white" fill-opacity="0.15"/>
-      <path d="M20 4L31 24H9L20 4Z" fill="white" fill-opacity="0.35"/>
-      <path d="M20 4L25 16H15L20 4Z" fill="white"/>
-    </svg>
     <span>Alternative Payments</span>
   </div>
   <button class="toggle-btn" id="toggleBtn" onclick="toggleMode()" title="Switch between internal rep view and clean prospect-facing view">Internal View</button>
@@ -553,8 +547,8 @@
 
   <!-- TITLE -->
   <div class="page-title">
-    <h1>The Old Way vs. Alternative Payments</h1>
-    <p>Why your clients can enroll and get their first payment sent on the very same day they sign up</p>
+    <h1>Standard ACH vs. Alternative Payments</h1>
+    <p>Why enrollment timing changes everything — and how your clients can pay on the same day they sign up</p>
   </div>
 
   <!-- LEGEND -->
@@ -911,87 +905,68 @@ const REVEALABLE = [
 
 const BEATS = [
   {
-    narration: "Welcome. All steps are hidden. We will reveal them one at a time. Click Next to start walking through both paths together.",
+    // Beat 1 of 11
+    narration: "All steps are hidden. We will walk through both paths side by side so you can see exactly where they differ. Click Next to begin.",
     reveal: [],
     active: []
   },
   {
-    narration: "Both paths start exactly the same way. Your client enters their bank routing number and account number. Same form. Same experience. This step is identical on both sides.",
+    // Beat 2 of 11 — both sides: client enters bank info
+    narration: "Both paths start identically. Your client opens the enrollment form, enters their routing number and account number, and hits submit. Same form. Same one minute of effort. The experience is identical here.",
     reveal: ['trad-step-1', 'ap-step-1'],
     active: ['trad-step-1', 'ap-step-1']
   },
   {
-    narration: "This is where the paths split. The traditional platform immediately puts the account on hold and flags it as 'pending verification.' Your client cannot make any payment yet.",
-    reveal: ['trad-step-2'],
-    active: ['trad-step-2']
+    // Beat 3 of 11 — the split: traditional locks, AP activates instantly
+    narration: "This is where the paths diverge completely. On the left, the traditional platform immediately flags the account as pending and blocks all payments. On the right, Alternative Payments stores the account and marks it active in under a second — all in the background with no action from your client.",
+    reveal: ['trad-step-2', 'ap-background-group'],
+    active: ['trad-step-2', 'ap-background-group']
   },
   {
-    narration: "On Alternative Payments, two things happen instantly in the background without any action from your client. The account is stored and activated in under a second.",
-    reveal: ['ap-background-group'],
-    active: ['ap-background-group']
+    // Beat 4 of 11 — traditional sends test deposits / AP sends real payment
+    narration: "The traditional platform sends two tiny test deposits — each between a penny and a dollar — out in the next ACH batch window, which could be hours away. Alternative Payments skips test deposits entirely and initiates the first real ACH payment that same day.",
+    reveal: ['trad-step-3', 'ap-step-4'],
+    active: ['trad-step-3', 'ap-step-4']
   },
   {
-    narration: "The traditional platform now sends two tiny test deposits to your client's bank. Each is between $0.01 and $1.00. These go out in the next ACH batch window, which could be hours away.",
-    reveal: ['trad-step-3'],
-    active: ['trad-step-3']
-  },
-  {
-    narration: "On Alternative Payments there are no test deposits at all. The first real payment goes out that same day, right now.",
-    reveal: ['ap-step-4'],
-    active: ['ap-step-4']
-  },
-  {
-    narration: "The ACH Network picks up the transactions on both sides and routes them toward your client's bank.",
+    // Beat 5 of 11 — ACH network routes both
+    narration: "The ACH Network picks up both transactions and routes them. For the traditional path this is routing small test amounts. For Alternative Payments this is routing your client's first real payment.",
     reveal: ['trad-step-4', 'ap-step-5'],
     active: ['trad-step-4', 'ap-step-5']
   },
   {
-    narration: "The test deposits arrive at your client's bank. But they may not appear on the bank statement yet — that can take another full business day.",
-    reveal: ['trad-step-5'],
-    active: ['trad-step-5']
-  },
-  {
-    narration: "Now we hit the wall. Your client has to wait 1 to 3 business days for those deposits to show up. They cannot pay. You cannot collect. Both sides are completely stopped.",
-    reveal: ['trad-wait'],
+    // Beat 6 of 11 — test deposits arrive + wait wall (grouped: these are one experience)
+    narration: "The test deposits arrive at your client's bank — but they may not appear on the statement for another full business day. Then the waiting begins. Your client cannot pay. You cannot collect. The process is completely paused for 1 to 3 business days while they wait for those deposits to show up.",
+    reveal: ['trad-step-5', 'trad-wait'],
     active: ['trad-wait']
   },
   {
-    narration: "Meanwhile on Alternative Payments, the payment is already settling at your client's bank. No wall. No wait. No problem.",
+    // Beat 7 of 11 — AP settles while traditional waits
+    narration: "While the traditional path is completely stopped, Alternative Payments is already settling. Your client's first payment is landing in your account. Day 0.",
     reveal: ['ap-step-6'],
     active: ['ap-step-6']
   },
   {
-    narration: "Your client now has to remember to come back on their own. They check their bank statement, find the two small amounts, log back into the platform, and type them in exactly right.",
-    reveal: ['trad-step-6'],
-    active: ['trad-step-6']
+    // Beat 8 of 11 — client returns + verification check (grouped: one client action flow)
+    narration: "Eventually your client has to remember to come back on their own. They check their bank statement, find the two small deposit amounts, log back into the platform, and type them in exactly. The platform checks the numbers. If they match, the account is finally verified. One wrong digit means starting over from scratch.",
+    reveal: ['trad-step-6', 'trad-step-7'],
+    active: ['trad-step-6', 'trad-step-7']
   },
   {
-    narration: "The platform checks the numbers. If they match exactly, the account is finally marked verified. If they got even one digit wrong, they start over.",
-    reveal: ['trad-step-7'],
-    active: ['trad-step-7']
-  },
-  {
-    narration: "Only now, for the very first time, can the platform send a real payment. On Alternative Payments, this happened on Day 0 when your client first enrolled.",
-    reveal: ['trad-step-8'],
-    active: ['trad-step-8']
-  },
-  {
-    narration: "The real payment routes through the ACH Network and settles. From enrollment to first dollar collected: 4 to 7 days. That is the best case on a traditional platform.",
-    reveal: ['trad-step-9', 'trad-step-10'],
+    // Beat 9 of 11 — traditional: first real payment initiated, routed, and settled
+    narration: "Only now — days after enrollment — can the traditional platform send its first real payment. It routes through the ACH Network and eventually settles. Best case start to finish: 4 to 7 days.",
+    reveal: ['trad-step-8', 'trad-step-9', 'trad-step-10'],
     active: ['trad-step-10']
   },
   {
-    narration: "On Alternative Payments, enrollment is already complete. Your client spent under a minute on this. Your team does not have to follow up on anything.",
-    reveal: ['ap-success'],
+    // Beat 10 of 11 — AP done + failure modes side by side
+    narration: "On Alternative Payments, enrollment has been complete since Day 0. Your client spent one minute. Your team has nothing to follow up on. These are the common ways the traditional process fails entirely — any one of them means a full restart, a lost payment, or a lost client.",
+    reveal: ['ap-success', 'trad-errors'],
     active: ['ap-success']
   },
   {
-    narration: "These are the common ways the traditional process fails entirely — each one requires a full restart. Any of these scenarios is a lost payment or a lost client.",
-    reveal: ['trad-errors'],
-    active: ['trad-errors']
-  },
-  {
-    narration: "Here is the key: settlement time is the same on both paths. The difference is everything that happens before the payment starts. That gap is where you lose clients and cash flow.",
+    // Beat 11 of 11 — insight + compare table
+    narration: "Here is the key: settlement time is the same on both paths. The difference is everything that happens before the payment starts. That gap — the verification wait — is where you lose clients and cash flow.",
     reveal: ['insight-bar', 'rep-script', 'compare-table'],
     active: ['insight-bar']
   }
@@ -1059,6 +1034,10 @@ function applyBeat(beatIndex) {
     if (el) {
       el.classList.remove('hidden-step');
       revealed.add(id);
+      // In prospect mode, keep rep elements hidden regardless of demo reveals
+      if (prospectMode && REP_ELEMENTS.includes(id)) {
+        el.style.display = 'none';
+      }
     }
   });
 
@@ -1119,6 +1098,13 @@ function resetDemo() {
 
   document.querySelectorAll('.hidden-step').forEach(el => el.classList.remove('hidden-step'));
   document.querySelectorAll('.active-step').forEach(el => el.classList.remove('active-step'));
+  // Re-apply prospect mode after reset clears all hidden-step classes
+  if (prospectMode) {
+    REP_ELEMENTS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  }
 
   document.getElementById('demoBar').classList.add('inactive');
   document.getElementById('startBtn').style.display = '';
