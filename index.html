@@ -32,9 +32,33 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      justify-content: space-between;
     }
     .site-header svg { height: 28px; width: auto; }
     .site-header span { color: white; font-size: 15px; font-weight: 600; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+
+    /* ── VIEW TOGGLE ── */
+    .toggle-btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1.5px solid rgba(255,255,255,0.3);
+      background: transparent;
+      color: rgba(255,255,255,0.85);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+      letter-spacing: 0.01em;
+    }
+    .toggle-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.5); }
+    .toggle-btn.prospect-active {
+      background: var(--ap-teal);
+      border-color: var(--ap-teal);
+      color: var(--navy);
+    }
+    .toggle-btn.prospect-active:hover { background: #00b090; border-color: #00b090; }
 
     /* ── DEMO CONTROL BAR ── */
     .demo-bar {
@@ -496,12 +520,15 @@
 
 <!-- ════════════════ HEADER ════════════════ -->
 <header class="site-header">
-  <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M20 4L36 32H4L20 4Z" fill="white" fill-opacity="0.15"/>
-    <path d="M20 4L31 24H9L20 4Z" fill="white" fill-opacity="0.35"/>
-    <path d="M20 4L25 16H15L20 4Z" fill="white"/>
-  </svg>
-  <span>Alternative Payments</span>
+  <div class="header-left">
+    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 4L36 32H4L20 4Z" fill="white" fill-opacity="0.15"/>
+      <path d="M20 4L31 24H9L20 4Z" fill="white" fill-opacity="0.35"/>
+      <path d="M20 4L25 16H15L20 4Z" fill="white"/>
+    </svg>
+    <span>Alternative Payments</span>
+  </div>
+  <button class="toggle-btn" id="toggleBtn" onclick="toggleMode()" title="Switch between internal rep view and clean prospect-facing view">Internal View</button>
 </header>
 
 <!-- ════════════════ DEMO CONTROL BAR ════════════════ -->
@@ -970,6 +997,32 @@ const BEATS = [
   }
 ];
 
+// ── VIEW MODE ──────────────────────────────────────
+const REP_ELEMENTS = ['insight-bar', 'rep-script'];
+let prospectMode = false;
+
+function toggleMode() {
+  prospectMode = !prospectMode;
+  const btn = document.getElementById('toggleBtn');
+  if (prospectMode) {
+    btn.textContent = 'Prospect View';
+    btn.classList.add('prospect-active');
+    REP_ELEMENTS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  } else {
+    btn.textContent = 'Internal View';
+    btn.classList.remove('prospect-active');
+    // Only restore visibility if demo hasn't hidden them via hidden-step
+    REP_ELEMENTS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
+  }
+}
+
+// ── DEMO STATE ─────────────────────────────────────
 let demoActive = false;
 let currentBeat = 0;
 let revealed = new Set();
